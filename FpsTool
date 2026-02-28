@@ -1,0 +1,212 @@
+-- Services
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Stats = game:GetService("Stats")
+local StarterGui = game:GetService("StarterGui")
+
+local player = Players.LocalPlayer
+
+-- FPS Toggle
+local capped = false
+local normalFPS = 0
+local lowFPS = 30
+
+local function toggleFPS()
+	if capped then
+		if setfpscap then
+			setfpscap(normalFPS)
+		end
+		capped = false
+	else
+		if setfpscap then
+			setfpscap(lowFPS)
+		end
+		capped = true
+	end
+end
+
+-- Notification Function
+local function sendNotification(title, text, duration)
+	pcall(function()
+		StarterGui:SetCore("SendNotification", {
+			Title = title,
+			Text = text,
+			Duration = duration
+		})
+	end)
+end
+
+-- GUI Setup
+local gui = Instance.new("ScreenGui")
+gui.Name = "MiniStats"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local label = Instance.new("TextLabel")
+label.Size = UDim2.new(0, 220, 0, 40)
+label.AnchorPoint = Vector2.new(0, 1)
+label.Position = UDim2.new(0, 10, 1, -5)
+label.BackgroundTransparency = 1
+label.Font = Enum.Font.GothamBold
+label.TextSize = 16
+label.TextXAlignment = Enum.TextXAlignment.Left
+label.TextYAlignment = Enum.TextYAlignment.Center
+label.RichText = true
+label.Parent = gui
+
+local stroke = Instance.new("UIStroke")
+stroke.Thickness = 1.5
+stroke.Color = Color3.fromRGB(0,0,0)
+stroke.Parent = label
+
+-- Loading States
+local loadingFPS = true
+local loadingPING = true
+
+task.spawn(function()
+	local dots = 0
+	while loadingFPS or loadingPING do
+		dots = (dots % 3) + 1
+		local dotText = string.rep(".", dots)
+
+		local fpsLine = loadingFPS and
+			"<font color='rgb(255,255,255)'>Loading FPS" .. dotText .. "</font>" or ""
+
+		local pingLine = loadingPING and
+			"<font color='rgb(255,255,255)'>Loading PING" .. dotText .. "</font>" or ""
+
+		label.Text = fpsLine .. "\n" .. pingLine
+		task.wait(0.4)
+	end
+end)
+
+-- Counter Visibility
+local counterVisible = true
+
+UserInputService.InputBegan:Connect(function(input, gp)
+	if gp then return end
+
+	if input.KeyCode == Enum.KeyCode.R then
+		toggleFPS()
+	end
+
+	if input.KeyCode == Enum.KeyCode.T then
+		counterVisible = not counterVisible
+		label.Visible = counterVisible
+
+		if counterVisible then
+			sendNotification("Counter Enabled", "FPS & Ping display is now visible.", 3)
+		else
+			sendNotification("Counter Disabled", "FPS & Ping display is now hidden.", 3)
+		end
+	end
+end)
+
+-- Startup Sequence
+task.wait(0.5)
+
+sendNotification(
+	"Loading",
+	"Please wait 3-5 seconds while the script is loading.",
+	4
+)
+
+task.wait(4)
+
+sendNotification(
+	"Loaded Successfully",
+	"The script is now running.",
+	15
+)
+
+task.wait(1.5)
+
+sendNotification(
+	"Controls",
+	"[ R ] - Toggle FPS Cap\n[ T ] - Show / Hide Counter",
+	15
+)
+
+-- FPS Calculation
+local fps = 0
+local frames = 0
+local last = tick()
+
+RunService.RenderStepped:Connect(function()
+	frames += 1
+	if tick() - last >= 1 then
+		fps = frames
+		frames = 0
+		last = tick()
+	end
+end)
+
+-- Stats Update Loop
+task.spawn(function()
+	while true do
+		
+		local ping = 0
+		local success, result = pcall(function()
+			local network = Stats:FindFirstChild("Network")
+			if network then
+				local serverStats = network:FindFirstChild("ServerStatsItem")
+				if serverStats then
+					local dataPing = serverStats:FindFirstChild("Data Ping")
+					if dataPing then
+						return dataPing:GetValue()
+					end
+				end
+			end
+		end)
+
+		if success and result then
+			ping = math.floor(result)
+		end
+
+		if fps > 0 then
+			loadingFPS = false
+		end
+
+		if ping > 0 then
+			loadingPING = false
+		end
+
+		if not loadingFPS or not loadingPING then
+
+			local fpsColor
+			if fps > 50 then
+				fpsColor = Color3.fromRGB(0,255,0)
+			elseif fps >= 30 then
+				fpsColor = Color3.fromRGB(255,215,0)
+			elseif fps >= 20 then
+				fpsColor = Color3.fromRGB(255,140,0)
+			else
+				fpsColor = Color3.fromRGB(255,0,0)
+			end
+
+			local pingColor
+			if ping < 50 then
+				pingColor = Color3.fromRGB(0,255,0)
+			elseif ping <= 120 then
+				pingColor = Color3.fromRGB(255,215,0)
+			elseif ping <= 190 then
+				pingColor = Color3.fromRGB(255,140,0)
+			else
+				pingColor = Color3.fromRGB(255,0,0)
+			end
+
+			label.Text =
+				"<font color='rgb(" .. math.floor(fpsColor.R*255) .. "," ..
+				math.floor(fpsColor.G*255) .. "," ..
+				math.floor(fpsColor.B*255) .. ")'>" ..
+				fps .. " FPS</font>\n" ..
+				"<font color='rgb(" .. math.floor(pingColor.R*255) .. "," ..
+				math.floor(pingColor.G*255) .. "," ..
+				math.floor(pingColor.B*255) .. ")'>" ..
+				ping .. " ms</font>"
+		end
+
+		task.wait(0.1)
+	end
+end)
