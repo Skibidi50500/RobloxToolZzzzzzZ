@@ -1,212 +1,141 @@
+-- Wait for game to load
+if not game:IsLoaded() then game.Loaded:Wait() end
+
 -- Services
-local UserInputService = game:GetService("UserInputService")
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Stats = game:GetService("Stats")
-local StarterGui = game:GetService("StarterGui")
+local Players, UserInputService, RunService, TweenService, Stats = 
+    game:GetService("Players"), 
+    game:GetService("UserInputService"),
+    game:GetService("RunService"),
+    game:GetService("TweenService"),
+    game:GetService("Stats")
 
+-- Get Player and PlayerGui
 local player = Players.LocalPlayer
+while not player do player = Players.LocalPlayer task.wait() end
+local playerGui = player:WaitForChild("PlayerGui")
 
--- FPS Toggle
-local capped = false
-local normalFPS = 0
-local lowFPS = 30
+-- Storage (To store MiniStats info)
+_G.MiniStats = _G.MiniStats or {injectCount = 0, connections = {}, hasLoadedOnce = false}
+local storage = _G.MiniStats
+storage.injectCount = storage.injectCount + 1
 
-local function toggleFPS()
-	if capped then
-		if setfpscap then
-			setfpscap(normalFPS)
-		end
-		capped = false
-	else
-		if setfpscap then
-			setfpscap(lowFPS)
-		end
-		capped = true
-	end
+-- Disconnect old connections
+for _, c in ipairs(storage.connections) do
+    if c and c.Disconnect then c:Disconnect() end
+end
+table.clear(storage.connections)
+
+-- Clean up old UI components before creating new ones
+if playerGui:FindFirstChild("MiniStats") then playerGui.MiniStats:Destroy() end
+if playerGui:FindFirstChild("MiniNotify") then playerGui.MiniNotify:Destroy() end
+
+-- Settings
+local LOW_FPS, loadDuration, loadStart = 30, math.random(3, 5), os.clock()
+local startupFinished, capped, counterVisible = false, false, true
+
+-- Notify System (Standard Roblox notifications)
+local function sendRobloxNotification(title, text, duration)
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = title,
+        Text = text,
+        Icon = "",
+        Duration = duration or 5
+    })
 end
 
--- Notification Function
-local function sendNotification(title, text, duration)
-	pcall(function()
-		StarterGui:SetCore("SendNotification", {
-			Title = title,
-			Text = text,
-			Duration = duration
-		})
-	end)
+-- Loading notification (shown only once when script is injected)
+if not storage.hasLoadedOnce then
+    sendRobloxNotification("Loading", "Please wait " .. loadDuration .. " seconds while the script is loading.", loadDuration)
 end
 
--- GUI Setup
-local gui = Instance.new("ScreenGui")
-gui.Name = "MiniStats"
-gui.ResetOnSpawn = false
-gui.Parent = player:WaitForChild("PlayerGui")
-
-local label = Instance.new("TextLabel")
-label.Size = UDim2.new(0, 220, 0, 40)
-label.AnchorPoint = Vector2.new(0, 1)
-label.Position = UDim2.new(0, 10, 1, -5)
-label.BackgroundTransparency = 1
-label.Font = Enum.Font.GothamBold
-label.TextSize = 16
-label.TextXAlignment = Enum.TextXAlignment.Left
-label.TextYAlignment = Enum.TextYAlignment.Center
-label.RichText = true
+-- Counter GUI (For FPS and Ping)
+local gui, label = Instance.new("ScreenGui"), Instance.new("TextLabel")
+gui.Name, gui.IgnoreGuiInset, gui.ResetOnSpawn, gui.Parent = "MiniStats", true, false, playerGui
+label.AnchorPoint, label.Position, label.Size, label.BackgroundTransparency, label.Font, label.TextSize, label.RichText, label.TextWrapped, label.TextXAlignment, label.TextYAlignment = 
+    Vector2.new(0, 1), UDim2.new(0, 8, 1, -8), UDim2.fromOffset(220, 65), 1, Enum.Font.GothamBold, 19, true, true, Enum.TextXAlignment.Left, Enum.TextYAlignment.Bottom
 label.Parent = gui
+local stroke = Instance.new("UIStroke", label)
+stroke.Thickness, stroke.Color = 1.4, Color3.new(0, 0, 0)
 
-local stroke = Instance.new("UIStroke")
-stroke.Thickness = 1.5
-stroke.Color = Color3.fromRGB(0,0,0)
-stroke.Parent = label
+-- FPS and Ping color functions
+local function fpsColor(v) return v < 20 and "255,0,0" or v < 30 and "255,140,0" or v < 50 and "255,215,0" or "0,255,0" end
+local function pingColor(v) return v < 45 and "0,255,0" or v < 65 and "255,215,0" or v < 130 and "255,140,0" or "255,0,0" end
 
--- Loading States
-local loadingFPS = true
-local loadingPING = true
+-- Keybinds
+table.insert(storage.connections, UserInputService.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.T then
+        counterVisible = not counterVisible
+        label.Visible = counterVisible
+        -- No custom notification here anymore
+    elseif input.KeyCode == Enum.KeyCode.R then
+        if setfpscap then
+            capped = not capped
+            setfpscap(capped and LOW_FPS or 0)
+        end
+    end
+end))
 
-task.spawn(function()
-	local dots = 0
-	while loadingFPS or loadingPING do
-		dots = (dots % 3) + 1
-		local dotText = string.rep(".", dots)
+-- Render loop (FPS and Ping calculations)
+local frames, fps, last, dotState, dotTimer = 0, 0, os.clock(), 0, 0
+local isCounting = true  -- Variable to track if we should update FPS and Ping
 
-		local fpsLine = loadingFPS and
-			"<font color='rgb(255,255,255)'>Loading FPS" .. dotText .. "</font>" or ""
+table.insert(storage.connections, RunService.RenderStepped:Connect(function(delta)
+    -- Only calculate FPS and Ping when counterVisible is true
+    if counterVisible then
+        if isCounting then
+            frames = frames + 1
 
-		local pingLine = loadingPING and
-			"<font color='rgb(255,255,255)'>Loading PING" .. dotText .. "</font>" or ""
+            -- Update FPS once per second
+            if os.clock() - last >= 1 then
+                fps = frames
+                frames = 0
+                last = os.clock()
+            end
 
-		label.Text = fpsLine .. "\n" .. pingLine
-		task.wait(0.4)
-	end
-end)
+            -- Loading placeholder
+            if not startupFinished then
+                dotTimer = dotTimer + delta
+                if dotTimer >= 0.4 then dotTimer = 0 dotState = (dotState % 3) + 1 end
+                local dots = string.rep(".", dotState)
 
--- Counter Visibility
-local counterVisible = true
+                label.Text = "<font color='rgb(255,255,255)'>LOADING FPS" .. dots .. "</font>\n" .. "<font color='rgb(255,255,255)'>LOADING PING" .. dots .. "</font>"
 
-UserInputService.InputBegan:Connect(function(input, gp)
-	if gp then return end
+                -- After loading time, show "Successfully Loaded" and "Controls"
+                if os.clock() - loadStart >= loadDuration then
+                    startupFinished = true
+                    storage.hasLoadedOnce = true
+                    sendRobloxNotification("Loaded Successfully", "The script is now running.", 4)
 
-	if input.KeyCode == Enum.KeyCode.R then
-		toggleFPS()
-	end
+                    -- Print the instructions to the console
+                    print("Successfully loaded")
+                    print("Press [ R ] = Toggle FPS Cap (30)")
+                    print("Press [ T ] - Show / Hide counter")
 
-	if input.KeyCode == Enum.KeyCode.T then
-		counterVisible = not counterVisible
-		label.Visible = counterVisible
+                    task.delay(0.2, function() 
+                        sendRobloxNotification("Controls", "[ R ] - Toggle FPS Cap (30)\n[ T ] - Show / Hide counter", 6) 
+                    end)
 
-		if counterVisible then
-			sendNotification("Counter Enabled", "FPS & Ping display is now visible.", 3)
-		else
-			sendNotification("Counter Disabled", "FPS & Ping display is now hidden.", 3)
-		end
-	end
-end)
+                    -- Hide notifications after 15 seconds
+                    task.delay(15, function() playerGui:FindFirstChild("MiniNotify"):Destroy() end)
+                end
+                return
+            end
+        end
+    end
 
--- Startup Sequence
-task.wait(0.5)
+    -- Real Ping from Stats
+    local ping = 0
+    local item = Stats.Network.ServerStatsItem["Data Ping"]
+    if item then ping = math.floor(item:GetValue()) end
 
-sendNotification(
-	"Loading",
-	"Please wait 3-5 seconds while the script is loading.",
-	4
-)
+    -- Update FPS and Ping counter
+    label.Text =
+        "<font color='rgb("..fpsColor(fps)..")'>"..fps.." FPS</font>\n".. 
+        "<font color='rgb("..pingColor(ping)..")'>"..ping.." ms</font>"
+end))
 
-task.wait(4)
-
-sendNotification(
-	"Loaded Successfully",
-	"The script is now running.",
-	15
-)
-
-task.wait(1.5)
-
-sendNotification(
-	"Controls",
-	"[ R ] - Toggle FPS Cap\n[ T ] - Show / Hide Counter",
-	15
-)
-
--- FPS Calculation
-local fps = 0
-local frames = 0
-local last = tick()
-
-RunService.RenderStepped:Connect(function()
-	frames += 1
-	if tick() - last >= 1 then
-		fps = frames
-		frames = 0
-		last = tick()
-	end
-end)
-
--- Stats Update Loop
-task.spawn(function()
-	while true do
-		
-		local ping = 0
-		local success, result = pcall(function()
-			local network = Stats:FindFirstChild("Network")
-			if network then
-				local serverStats = network:FindFirstChild("ServerStatsItem")
-				if serverStats then
-					local dataPing = serverStats:FindFirstChild("Data Ping")
-					if dataPing then
-						return dataPing:GetValue()
-					end
-				end
-			end
-		end)
-
-		if success and result then
-			ping = math.floor(result)
-		end
-
-		if fps > 0 then
-			loadingFPS = false
-		end
-
-		if ping > 0 then
-			loadingPING = false
-		end
-
-		if not loadingFPS or not loadingPING then
-
-			local fpsColor
-			if fps > 50 then
-				fpsColor = Color3.fromRGB(0,255,0)
-			elseif fps >= 30 then
-				fpsColor = Color3.fromRGB(255,215,0)
-			elseif fps >= 20 then
-				fpsColor = Color3.fromRGB(255,140,0)
-			else
-				fpsColor = Color3.fromRGB(255,0,0)
-			end
-
-			local pingColor
-			if ping < 50 then
-				pingColor = Color3.fromRGB(0,255,0)
-			elseif ping <= 120 then
-				pingColor = Color3.fromRGB(255,215,0)
-			elseif ping <= 190 then
-				pingColor = Color3.fromRGB(255,140,0)
-			else
-				pingColor = Color3.fromRGB(255,0,0)
-			end
-
-			label.Text =
-				"<font color='rgb(" .. math.floor(fpsColor.R*255) .. "," ..
-				math.floor(fpsColor.G*255) .. "," ..
-				math.floor(fpsColor.B*255) .. ")'>" ..
-				fps .. " FPS</font>\n" ..
-				"<font color='rgb(" .. math.floor(pingColor.R*255) .. "," ..
-				math.floor(pingColor.G*255) .. "," ..
-				math.floor(pingColor.B*255) .. ")'>" ..
-				ping .. " ms</font>"
-		end
-
-		task.wait(0.1)
-	end
-end)
+-- Inject count notification (if script was injected more than once)
+if storage.injectCount > 1 then
+    sendRobloxNotification("Inject Count", "Script injected " .. storage.injectCount .. " times.", 4)
+end
