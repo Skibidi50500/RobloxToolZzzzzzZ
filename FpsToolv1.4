@@ -2,7 +2,7 @@ if not game:IsLoaded() then game.Loaded:Wait() end
 local UI, RS, STG = game:GetService("UserInputService"), game:GetService("RunService"), game:GetService("StarterGui")
 _G.MiniStats = (_G.MiniStats or {injectCount = 0}); _G.MiniStats.injectCount += 1
 
-local loaded, lc, cap, toggle = false, 0, 120, false
+local loaded, cap, toggle = false, 120, false
 
 local function notify(t, m, d)
     pcall(function() STG:SetCore("SendNotification", {Title = t, Text = m, Duration = d or 5}) end)
@@ -20,9 +20,8 @@ RS.RenderStepped:Connect(function()
 end)
 
 UI.InputBegan:Connect(function(i)
-    if loaded and i.UserInputType == Enum.UserInputType.Keyboard and i.KeyCode == Enum.KeyCode.R and tick() - lc > 0.5 then
+    if loaded and i.UserInputType == Enum.UserInputType.Keyboard and i.KeyCode == Enum.KeyCode.R then
         toggle = not toggle
         setfpscap(toggle and 30 or cap)
-        lc = tick()
     end
 end)
