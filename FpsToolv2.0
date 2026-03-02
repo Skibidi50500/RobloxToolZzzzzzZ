@@ -1,0 +1,114 @@
+if not game:IsLoaded() then game.Loaded:Wait() end
+
+local UIS,RS,STG=game:GetService"UserInputService",game:GetService"RunService",game:GetService"StarterGui"
+local toggle,maxFps,frameCount,lastTime,currentFps,isLoading,guiVisible=false,120,0,tick(),0,true,false
+local renderConn,inputConn
+
+local gui=Instance.new("ScreenGui",game.Players.LocalPlayer:WaitForChild"PlayerGui")
+gui.Name,gui.ResetOnSpawn="FPS",false
+
+local function f(p,s,pos,bg,c)local f=Instance.new("Frame",p)f.Size,f.Position,f.BackgroundColor3,f.BorderSizePixel=s,pos,bg,0 if c then Instance.new("UICorner",f).CornerRadius=UDim.new(0,8)end return f end
+local function l(p,s,pos,t,ts,col)local l=Instance.new("TextLabel",p)l.Size,l.Position,l.Text,l.TextSize=s,pos,t,ts l.BackgroundTransparency,l.TextColor3,l.Font=1,col or Color3.fromRGB(150,150,150),Enum.Font.Gotham l.TextXAlignment,l.TextYAlignment=Enum.TextXAlignment.Left,Enum.TextYAlignment.Center return l end
+
+local lp=f(gui,UDim2.new(0,520,0,340),UDim2.new(0.5,-260,0.5,-170),Color3.fromRGB(32,34,37),true)
+local lh=f(lp,UDim2.new(1,0,0,45),UDim2.new(0,0,0,0),Color3.fromRGB(32,34,37),true)
+local lt=l(lh,UDim2.new(1,-100,1,0),UDim2.new(0,15,0,0),"🎮 FPS Cap Controller<baseline offset='5'><font color='rgb(255, 140, 0)' size='11'> ● Loading</font></baseline>",16,Color3.fromRGB(220,221,225))
+lt.Font,lt.RichText,lt.TextXAlignment=Enum.Font.GothamBold,true,Enum.TextXAlignment.Left
+
+local lc=f(lp,UDim2.new(1,0,1,-45),UDim2.new(0,0,0,45),Color3.fromRGB(32,34,37),false)lc.BackgroundTransparency=1
+
+local pb=f(lc,UDim2.new(1,-40,0,40),UDim2.new(0,20,0.5,-20),Color3.fromRGB(40,40,45),true)
+local pf=f(pb,UDim2.new(0,0,1,0),UDim2.new(0,0,0,0),Color3.fromRGB(100,200,255),true)
+local pt=Instance.new("TextLabel",pb)pt.Size,pt.Position,pt.Text,pt.TextSize=UDim2.new(1,0,1,0),UDim2.new(0,0,0,0),"0%",14
+pt.BackgroundTransparency,pt.TextColor3,pt.Font=1,Color3.fromRGB(255,255,255),Enum.Font.GothamBold
+pt.TextXAlignment,pt.TextYAlignment=Enum.TextXAlignment.Center,Enum.TextYAlignment.Center
+
+local lodt=Instance.new("TextLabel",lc)lodt.Size,lodt.Position,lodt.Text,lodt.TextSize=UDim2.new(1,-40,0,30),UDim2.new(0,20,0.5,30),"Initializing FPS Cap Controller",12
+lodt.BackgroundTransparency,lodt.TextColor3,lodt.Font=1,Color3.fromRGB(150,150,150),Enum.Font.Gotham
+lodt.TextXAlignment,lodt.TextYAlignment=Enum.TextXAlignment.Center,Enum.TextYAlignment.Center
+
+local w=f(gui,UDim2.new(0,520,0,340),UDim2.new(0.5,-260,0.5,-170),Color3.fromRGB(32,34,37),true)w.Visible=false
+
+local hd=Instance.new("TextButton",w)
+hd.Size,hd.Position,hd.BackgroundColor3,hd.BorderSizePixel,hd.Text,hd.AutoButtonColor=UDim2.new(1,0,0,45),UDim2.new(0,0,0,0),Color3.fromRGB(32,34,37),0,"",false
+Instance.new("UICorner",hd).CornerRadius=UDim.new(0,8)
+
+local tl=l(hd,UDim2.new(1,-100,1,0),UDim2.new(0,15,0,0),"🎮 FPS Cap Controller<baseline offset='5'><font color='rgb(100, 255, 100)' size='11'> ● Active</font></baseline>",16,Color3.fromRGB(220,221,225))
+tl.Font,tl.RichText,tl.TextXAlignment=Enum.Font.GothamBold,true,Enum.TextXAlignment.Left
+
+local vl=l(hd,UDim2.new(0,40,0,20),UDim2.new(1,-75,0.5,-10),"v2.0",10,Color3.fromRGB(150,150,150))vl.Font=Enum.Font.GothamBold vl.TextXAlignment=Enum.TextXAlignment.Center
+
+local mb=Instance.new("TextButton",hd)
+mb.Size,mb.Position,mb.BackgroundColor3,mb.Text=UDim2.new(0,30,0,30),UDim2.new(1,-40,0.5,-15),Color3.fromRGB(50,52,56),"−"
+mb.BorderSizePixel,mb.TextColor3,mb.TextSize,mb.Font,mb.AutoButtonColor=0,Color3.fromRGB(200,200,200),16,Enum.Font.GothamBold,false
+Instance.new("UICorner",mb).CornerRadius=UDim.new(0,6)
+mb.MouseButton1Click:Connect(function()if not isLoading then w.Visible,guiVisible=false,false STG:SetCore("SendNotification",{Title="FPS Cap Controller",Text="Press M to open the interface",Duration=3})end end)
+mb.MouseEnter:Connect(function()mb.BackgroundColor3=Color3.fromRGB(70,72,76)end)
+mb.MouseLeave:Connect(function()mb.BackgroundColor3=Color3.fromRGB(50,52,56)end)
+
+local drag,ds,dpos=false,nil,nil
+hd.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 then drag=true ds,dpos=i.Position,w.Position end end)
+hd.InputEnded:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 then drag=false end end)
+UIS.InputChanged:Connect(function(i)if drag and i.UserInputType==Enum.UserInputType.MouseMovement then w.Position=dpos+UDim2.new(0,i.Position.X-ds.X,0,i.Position.Y-ds.Y)end end)
+
+local c=f(w,UDim2.new(1,0,1,-45),UDim2.new(0,0,0,45),Color3.fromRGB(32,34,37),false)c.BackgroundTransparency=1
+
+l(c,UDim2.new(1,-40,0,13),UDim2.new(0,20,0,8),"TOGGLE FPS CAP (30 FPS)",10)
+local tb=Instance.new("TextButton",c)
+tb.Size,tb.Position,tb.BackgroundColor3,tb.Text=UDim2.new(1,-40,0,36),UDim2.new(0,20,0,25),Color3.fromRGB(200,50,50),"Press [R] or Click to Toggle - OFF"
+tb.BorderSizePixel,tb.TextColor3,tb.TextSize,tb.Font,tb.AutoButtonColor=0,Color3.fromRGB(255,255,255),12,Enum.Font.GothamBold,false
+Instance.new("UICorner",tb).CornerRadius=UDim.new(0,6)
+
+local function upToggle()if isLoading then return end setfpscap(toggle and 30 or maxFps)tb.Text="Press [R] or Click to Toggle - "..(toggle and"ON"or"OFF")tb.BackgroundColor3=toggle and Color3.fromRGB(50,180,50)or Color3.fromRGB(200,50,50)end
+tb.MouseButton1Click:Connect(function()if not isLoading then toggle=not toggle upToggle()end end)
+tb.MouseEnter:Connect(function()tb.BackgroundColor3=toggle and Color3.fromRGB(70,200,70)or Color3.fromRGB(220,70,70)end)
+tb.MouseLeave:Connect(function()tb.BackgroundColor3=toggle and Color3.fromRGB(50,180,50)or Color3.fromRGB(200,50,50)end)
+
+local st=f(c,UDim2.new(1,-40,0,50),UDim2.new(0,20,0,68),Color3.fromRGB(32,34,37),false)st.BackgroundTransparency=1
+
+local mfl=l(st,UDim2.new(0.5,-11,0,13),UDim2.new(0,0,0,0),"SET MAX FPS (120 FPS)",10)
+local ib=Instance.new("TextBox",st)
+ib.Size,ib.Position,ib.BackgroundColor3,ib.Text=UDim2.new(0.5,-6,0,32),UDim2.new(0,0,0,17),Color3.fromRGB(40,40,45),"120"
+ib.BorderSizePixel,ib.TextColor3,ib.TextSize,ib.Font=0,Color3.fromRGB(220,221,225),12,Enum.Font.Gotham
+ib.PlaceholderText,ib.PlaceholderColor3="Enter FPS (30+)",Color3.fromRGB(100,100,100)
+Instance.new("UICorner",ib).CornerRadius=UDim.new(0,6)
+ib.Changed:Connect(function()if ib.Text:match"[^%d]"then ib.Text=ib.Text:gsub("[^%d]","")end end)
+ib.FocusLost:Connect(function()local v=tonumber(ib.Text)if v and v>=30 then maxFps=v mfl.Text="SET MAX FPS ("..maxFps.." FPS)"if not toggle then setfpscap(maxFps)end else STG:SetCore("SendNotification",{Title="Invalid Input",Text="Please enter a value of 30 or higher",Duration=2})end end)
+
+local fl=l(st,UDim2.new(0.5,-6,0,13),UDim2.new(0.5,6,0,0),"CURRENT FPS",10)fl.TextXAlignment=Enum.TextXAlignment.Right
+local dpf=f(st,UDim2.new(0.5,-6,0,32),UDim2.new(0.5,6,0,17),Color3.fromRGB(40,40,45),true)
+local dp=l(dpf,UDim2.new(1,0,1,0),UDim2.new(0,0,0,0),"60 FPS",13,Color3.fromRGB(100,200,255))
+dp.Font,dp.TextXAlignment=Enum.Font.GothamBold,Enum.TextXAlignment.Center
+
+local function upFpsCol(f)dp.TextColor3=f<20 and Color3.fromRGB(255,50,50)or f<30 and Color3.fromRGB(255,140,0)or f<50 and Color3.fromRGB(255,255,0)or Color3.fromRGB(100,255,100)end
+
+l(c,UDim2.new(1,-40,0,13),UDim2.new(0,20,0,130),"CONTROLS",10)
+local inf=f(c,UDim2.new(1,-40,0,127),UDim2.new(0,20,0,147),Color3.fromRGB(40,40,45),true)
+local ift=l(inf,UDim2.new(1,0,1,0),UDim2.new(0,0,0,0),"• [R] - Toggle FPS Cap ON/OFF\n• [M] - Show/Hide Window\n• Enter Max FPS & Press Enter",10)
+ift.TextYAlignment=Enum.TextYAlignment.Top
+local ifp=Instance.new("UIPadding",ift)ifp.PaddingTop,ifp.PaddingLeft,ifp.PaddingRight,ifp.PaddingBottom=UDim.new(0,6),UDim.new(0,12),UDim.new(0,12),UDim.new(0,6)
+
+local lt2=math.random(5,10)local t0=tick()local dc,dt,lat,ns=0,0,nil,false
+local function upFps()frameCount=frameCount+1 local ct=tick()local td=ct-lastTime if td>=0.5 then currentFps=math.floor(frameCount/td)dp.Text=currentFps.." FPS"upFpsCol(currentFps)frameCount,lastTime=0,ct end end
+
+renderConn=RS.RenderStepped:Connect(function()
+	if isLoading then
+		local el=tick()-t0 local pr=math.min(el/lt2,1)
+		pf.Size=UDim2.new(pr,0,1,0)pt.Text=math.floor(pr*100).."%"
+		dt=dt+(1/60)if dt>=0.5 then dc=(dc+1)%4 lodt.Text=pr>=1 and"Loaded!"or"Initializing FPS Cap Controller"..string.rep(".",dc)dt=0 end
+		if el>=lt2 and not lat then lat=tick()end
+		if lat and(tick()-lat)>=1 and lp and lp.Parent then if not ns then ns=true isLoading=false lp:Destroy()w.Visible,guiVisible=true,true STG:SetCore("SendNotification",{Title="FPS Cap Controller",Text="Successfully loaded!",Duration=5})end end
+	elseif guiVisible then upFps()end
+end)
+
+inputConn=UIS.InputBegan:Connect(function(i,gp)
+	if isLoading then return end
+	if i.UserInputType==Enum.UserInputType.Keyboard then
+		if not gp then
+			if i.KeyCode==Enum.KeyCode.R then toggle=not toggle upToggle()
+			elseif i.KeyCode==Enum.KeyCode.M then guiVisible=not w.Visible w.Visible=guiVisible STG:SetCore("SendNotification",{Title="FPS Cap Controller",Text=guiVisible and"Press M to close the interface"or"Press M to open the interface",Duration=3})end
+		end
+	end
+end)
+
+game:GetService"Players".LocalPlayer.CharacterAdded:Connect(function()if renderConn then renderConn:Disconnect()end if inputConn then inputConn:Disconnect()end end)
