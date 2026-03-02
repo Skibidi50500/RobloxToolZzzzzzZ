@@ -84,7 +84,7 @@ local function upFpsCol(f)dp.TextColor3=f<20 and Color3.fromRGB(255,50,50)or f<3
 
 l(c,UDim2.new(1,-40,0,13),UDim2.new(0,20,0,130),"CONTROLS",10)
 local inf=f(c,UDim2.new(1,-40,0,127),UDim2.new(0,20,0,147),Color3.fromRGB(40,40,45),true)
-local ift=l(inf,UDim2.new(1,0,1,0),UDim2.new(0,0,0,0),"• [R] - Toggle FPS Cap ON/OFF\n• [M] - Show/Hide Window\n• Enter Max FPS & Press Enter",10)
+local ift=l(inf,UDim2.new(1,0,1,0),UDim2.new(0,0,0,0),"• [R] - Toggle FPS Cap\n• [M] - Show/Hide Interface\n• Customize your FPS and press Enter to apply",10)
 ift.TextYAlignment=Enum.TextYAlignment.Top
 local ifp=Instance.new("UIPadding",ift)ifp.PaddingTop,ifp.PaddingLeft,ifp.PaddingRight,ifp.PaddingBottom=UDim.new(0,6),UDim.new(0,12),UDim.new(0,12),UDim.new(0,6)
 
