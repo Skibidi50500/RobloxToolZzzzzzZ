@@ -70,7 +70,7 @@ renderConn=RS.RenderStepped:Connect(function()
 		pf.Size=UDim2.new(pr,0,1,0)pt.Text=math.floor(pr*100).."%"
 		dt=dt+(1/60)if dt>=0.5 then dc=(dc+1)%4 lodt.Text=pr>=1 and"Loaded!"or"Initializing FPS Cap Controller"..string.rep(".",dc)dt=0 end
 		if el>=lt2 and not lat then lat=tick()end
-		if lat and(tick()-lat)>=1 and lp and lp.Parent then if not ns then ns=true isLoading=false lp:Destroy()w.Visible,guiVisible=false,false STG:SetCore("SendNotification",{Title="FPS Cap Controller",Text="Successfully loaded!",Duration=5})end end
+		if lat and(tick()-lat)>=1 and lp and lp.Parent then if not ns then ns=true isLoading=false lp:Destroy()w.Visible,guiVisible=false,false STG:SetCore("SendNotification",{Title="FPS Cap Controller",Text="Successfully loaded! Press M to open the interface",Duration=5})end end
 	elseif guiVisible then upFps()end
 end)
 if inputConn then inputConn:Disconnect()end
