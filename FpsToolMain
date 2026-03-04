@@ -1,0 +1,62 @@
+if not game:IsLoaded() then game.Loaded:Wait() end
+local U,S=game:GetService("UserInputService"),game:GetService("StarterGui")
+local PG=game.Players.LocalPlayer:WaitForChild("PlayerGui")
+local C={fpsCapped=false,customFpsLimit=240,isVisible=true,logCounter=0,logs={},isBindingKey=false,isDragging=false,currentKeybind=Enum.KeyCode.R,dragStartPos=nil,dragStartMousePos=nil}
+setfpscap(240)
+local G=PG:FindFirstChild("FPSToolSimple")or Instance.new("ScreenGui",PG)
+G.Name,G.ResetOnSpawn="FPSToolSimple",false
+for _,v in pairs(G:GetChildren())do v:Destroy()end
+local function L(P,N,S,Po,T,Co,TS,TX)local l=Instance.new("TextLabel",P)l.Name,l.Size,l.Position,l.Text,l.TextSize,l.TextColor3,l.BackgroundTransparency=N,S,Po,T,TS or 12,Co or Color3.fromRGB(220,221,225),1 l.Font,l.TextXAlignment,l.TextYAlignment=Enum.Font.Gotham,TX or Enum.TextXAlignment.Left,Enum.TextYAlignment.Center return l end
+local MF=Instance.new("Frame",G)MF.Name,MF.Size,MF.Position,MF.BackgroundColor3,MF.BorderSizePixel="MainFrame",UDim2.new(0,500,0,360),UDim2.new(0.5,-250,0.5,-180),Color3.fromRGB(32,34,37),0
+local TB=Instance.new("Frame",MF)TB.Size,TB.BackgroundColor3,TB.BorderSizePixel=UDim2.new(1,0,0,40),Color3.fromRGB(32,34,37),0
+L(TB,"Title",UDim2.new(0,200,0,25),UDim2.new(0,15,0,5),"FPS Tool",Color3.fromRGB(220,221,225),18,Enum.TextXAlignment.Left).Font=Enum.Font.GothamBold
+L(TB,"Active",UDim2.new(0,100,0,25),UDim2.new(0,15,0,20),"● Active",Color3.fromRGB(100,255,100),11)
+local SL=L(TB,"Status",UDim2.new(0,100,1,0),UDim2.new(0,250,0,0),"",Color3.fromRGB(100,255,100),12,Enum.TextXAlignment.Center)SL.Font=Enum.Font.GothamBold
+local MB=Instance.new("TextButton",TB)MB.Size,MB.Position,MB.BackgroundColor3,MB.BorderSizePixel=UDim2.new(0,40,0,40),UDim2.new(1,-40,0,0),Color3.fromRGB(32,34,37),0
+MB.Text,MB.TextSize,MB.TextColor3,MB.Font,MB.AutoButtonColor="−",24,Color3.fromRGB(200,200,200),Enum.Font.GothamBold,false
+MB.MouseEnter:Connect(function()MB.BackgroundColor3=Color3.fromRGB(50,52,56)end)MB.MouseLeave:Connect(function()MB.BackgroundColor3=Color3.fromRGB(32,34,37)end)
+MB.MouseButton1Click:Connect(function()MF.Visible,C.isVisible=false,false end)
+local DA=Instance.new("TextButton",TB)DA.Size,DA.Position,DA.BackgroundTransparency,DA.Text,DA.AutoButtonColor=UDim2.new(1,-50,1,0),UDim2.new(0,0,0,0),1,"",false
+DA.InputBegan:Connect(function(I)if I.UserInputType==Enum.UserInputType.MouseButton1 then C.isDragging,C.dragStartPos,C.dragStartMousePos=true,MF.Position,I.Position end end)
+DA.InputEnded:Connect(function(I)if I.UserInputType==Enum.UserInputType.MouseButton1 then C.isDragging=false end end)
+U.InputChanged:Connect(function(I)if C.isDragging and I.UserInputType==Enum.UserInputType.MouseMovement then local D=I.Position-C.dragStartMousePos MF.Position=C.dragStartPos+UDim2.new(0,D.X,0,D.Y)end end)
+local CF=Instance.new("Frame",MF)CF.Size,CF.Position,CF.BackgroundColor3,CF.BorderSizePixel,CF.BackgroundTransparency=UDim2.new(1,0,1,-40),UDim2.new(0,0,0,40),Color3.fromRGB(32,34,37),0,1
+L(CF,"ControlsLabel",UDim2.new(1,-30,0,12),UDim2.new(0,15,0,15),"Controls",Color3.fromRGB(150,150,150),10)
+local CTF=Instance.new("Frame",CF)CTF.Size,CTF.Position,CTF.BackgroundColor3,CTF.BorderSizePixel,CTF.BorderColor3=UDim2.new(1,-30,0,65),UDim2.new(0,15,0,30),Color3.fromRGB(40,40,45),1,Color3.fromRGB(80,80,85)
+local FR=Instance.new("Frame",CTF)FR.Size,FR.Position,FR.BackgroundTransparency,FR.BorderSizePixel=UDim2.new(1,-20,0,25),UDim2.new(0,10,0,8),1,0
+L(FR,"Label",UDim2.new(0,100,0,25),UDim2.new(0,0,0,0),"Adjust FPS limit :",Color3.fromRGB(220,221,225),12)
+local FIF=Instance.new("Frame",FR)FIF.Size,FIF.Position,FIF.BackgroundColor3,FIF.BorderSizePixel=UDim2.new(0,23,0,20),UDim2.new(0,95,0,2.5),Color3.fromRGB(35,35,40),0
+local FIT=Instance.new("TextBox",FIF)FIT.Size,FIT.Position,FIT.BackgroundTransparency,FIT.BorderSizePixel=UDim2.new(1,0,1,0),UDim2.new(0,0,0,0),1,0
+FIT.Text,FIT.TextSize,FIT.TextColor3,FIT.Font=tostring(C.customFpsLimit),12,Color3.fromRGB(220,221,225),Enum.Font.Gotham
+FIT.TextXAlignment,FIT.PlaceholderText,FIT.PlaceholderColor3,FIT.ClearTextOnFocus=Enum.TextXAlignment.Left,"...",Color3.fromRGB(255,255,255),false
+Instance.new("UIPadding",FIT).PaddingLeft=UDim.new(0,2)
+local function UFZ()FIF.Size=UDim2.new(0,math.max(23,#FIT.Text*7+4),0,20)end
+local function AL(M)C.logCounter=C.logCounter+1 table.insert(C.logs,string.format("[%d] - [%s] - %s",C.logCounter,os.date("%H:%M:%S"),M))if #C.logs>50 then table.remove(C.logs,1)end ULD()end
+local function SE()FIT.Text="Invalid input!"FIT.TextColor3=Color3.fromRGB(255,100,100)FIF.BackgroundColor3=Color3.fromRGB(60,35,35)UFZ()S:SetCore("SendNotification",{Title="FPS Tool",Text="Invalid input! FPS must be 30 or higher.",Duration=3})task.wait(1)FIT.Text=tostring(C.customFpsLimit)FIT.TextColor3=Color3.fromRGB(220,221,225)FIF.BackgroundColor3=Color3.fromRGB(35,35,40)UFZ()end
+FIT.Changed:Connect(function()FIT.Text=FIT.Text:gsub("[^%d]","")UFZ()end)
+FIT.Focused:Connect(function()FIF.BackgroundColor3=Color3.fromRGB(40,40,45)FIT.Text=""end)
+FIT.FocusLost:Connect(function()if FIT.Text==""then FIT.Text=tostring(C.customFpsLimit)else local V=tonumber(FIT.Text)if V and V>=30 then C.customFpsLimit=V FIT.Text=tostring(V)AL("FPS limit set to "..V)S:SetCore("SendNotification",{Title="FPS Tool",Text="FPS limit set to "..V,Duration=3})if not C.fpsCapped then setfpscap(V)end else AL("Invalid FPS input: "..FIT.Text)SE()return end end FIF.BackgroundColor3=Color3.fromRGB(35,35,40)UFZ()end)
+FIF.MouseEnter:Connect(function()FIF.BackgroundColor3=Color3.fromRGB(40,40,45)end)FIF.MouseLeave:Connect(function()FIF.BackgroundColor3=Color3.fromRGB(35,35,40)end)
+UFZ()
+local KR=Instance.new("Frame",CTF)KR.Size,KR.Position,KR.BackgroundTransparency,KR.BorderSizePixel=UDim2.new(1,-20,0,25),UDim2.new(0,10,0,35),1,0
+local KIF=Instance.new("TextButton",KR)KIF.Size,KIF.Position,KIF.BackgroundColor3,KIF.BorderSizePixel=UDim2.new(0,30,0,20),UDim2.new(0,0,0,2.5),Color3.fromRGB(35,35,40),0
+KIF.Text,KIF.AutoButtonColor="",false
+local KD=Instance.new("TextLabel",KIF)KD.Size,KD.Position,KD.BackgroundTransparency,KD.BorderSizePixel=UDim2.new(1,0,1,0),UDim2.new(0,0,0,0),1,0
+KD.Text,KD.TextSize,KD.TextColor3,KD.Font=C.currentKeybind.Name,12,Color3.fromRGB(255,255,255),Enum.Font.GothamBold
+KD.TextXAlignment,KD.TextYAlignment=Enum.TextXAlignment.Center,Enum.TextYAlignment.Center
+L(KR,"Label",UDim2.new(1,-40,0,25),UDim2.new(0,35,0,0),"Toggle FPS Cap (30)",Color3.fromRGB(220,221,225),12)
+KIF.MouseEnter:Connect(function()if not C.isBindingKey then KIF.BackgroundColor3=Color3.fromRGB(40,40,45)end end)
+KIF.MouseLeave:Connect(function()if not C.isBindingKey then KIF.BackgroundColor3=Color3.fromRGB(35,35,40)end end)
+KIF.MouseButton1Click:Connect(function()if not C.isBindingKey then C.isBindingKey=true KD.Text,KD.TextColor3="...",Color3.fromRGB(150,150,150)KIF.BackgroundColor3=Color3.fromRGB(40,40,45)AL("Waiting for keybind input...")end end)
+L(CF,"LogsLabel",UDim2.new(1,-30,0,12),UDim2.new(0,15,0,100),"Logs",Color3.fromRGB(150,150,150),10)
+local LF=Instance.new("Frame",CF)LF.Size,LF.Position,LF.BackgroundColor3,LF.BorderSizePixel,LF.BorderColor3=UDim2.new(1,-30,0,182),UDim2.new(0,15,0,115),Color3.fromRGB(40,40,45),1,Color3.fromRGB(80,80,85)
+local LS=Instance.new("ScrollingFrame",LF)LS.Size,LS.Position,LS.BackgroundColor3,LS.BorderSizePixel=UDim2.new(1,0,1,0),UDim2.new(0,0,0,0),Color3.fromRGB(40,40,45),0
+LS.ScrollBarThickness,LS.CanvasSize,LS.ScrollingDirection=5,UDim2.new(1,0,0,0),Enum.ScrollingDirection.Y
+local LC=Instance.new("Frame",LS)LC.Size,LC.Position,LC.BackgroundTransparency,LC.BorderSizePixel=UDim2.new(1,0,0,0),UDim2.new(0,0,0,0),1,0
+L(CF,"AutoClearLabel",UDim2.new(1,-30,0,10),UDim2.new(0,15,0,300),"^Auto Clear at 50",Color3.fromRGB(120,120,120),8)
+function ULD()for _,v in pairs(LC:GetChildren())do v:Destroy()end local YO=0 for I,LG in ipairs(C.logs)do local LL=L(LC,"Log"..I,UDim2.new(1,0,0,11),UDim2.new(0,5,0,YO),LG,Color3.fromRGB(150,150,150),10)LL.TextWrapped=true YO=YO+11 end LC.Size=UDim2.new(1,0,0,math.max(YO,0))LS.CanvasSize=UDim2.new(1,0,0,YO)LS.CanvasPosition=Vector2.new(0,math.max(YO-182,0))end
+AL("FPS Tool initialized")
+local function ILK(K)local KN=K.Name return #KN==1 and KN:match("[A-Z]")~=nil end
+local function USL()SL.TextColor3=C.fpsCapped and Color3.fromRGB(255,150,100)or Color3.fromRGB(100,255,100)end
+U.InputBegan:Connect(function(I,GP)if C.isBindingKey then if I.UserInputType==Enum.UserInputType.Keyboard and ILK(I.KeyCode)then C.currentKeybind=I.KeyCode KD.Text=C.currentKeybind.Name KD.TextColor3=Color3.fromRGB(255,255,255)KIF.BackgroundColor3=Color3.fromRGB(35,35,40)C.isBindingKey=false AL("Keybind changed to [ "..C.currentKeybind.Name.." ]")S:SetCore("SendNotification",{Title="FPS Tool",Text="Keybind changed to [ "..C.currentKeybind.Name.." ]",Duration=3})end return end if GP then return end if I.UserInputType==Enum.UserInputType.Keyboard then if I.KeyCode==C.currentKeybind then C.fpsCapped=not C.fpsCapped if C.fpsCapped then setfpscap(30)AL("FPS Cap ON (30 FPS)")else setfpscap(C.customFpsLimit)AL("FPS Cap OFF ("..C.customFpsLimit.." FPS)")end USL()elseif I.KeyCode==Enum.KeyCode.M then MF.Visible=not MF.Visible C.isVisible=MF.Visible AL(C.isVisible and"Interface shown"or"Interface hidden")end end end)
+S:SetCore("SendNotification",{Title="FPS Tool loaded",Text="Press [M] to toggle interface",Duration=10})task.wait(0.5)S:SetCore("SendNotification",{Title="Default FPS",Text="Your default maximum FPS is now set to 240.",Duration=10})
