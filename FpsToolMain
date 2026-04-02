@@ -1,0 +1,114 @@
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
+-- Anti double inject
+if _G.__FPS_TOOL_LOADED__ then
+    pcall(function()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "FPS Tool",
+            Text = "Already running",
+            Duration = 4
+        })
+    end)
+    return
+end
+_G.__FPS_TOOL_LOADED__ = true
+
+-- Services
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
+
+local LocalPlayer = Players.LocalPlayer
+
+-- Default config
+local DEFAULT = {
+    ToggleKey = Enum.KeyCode.R,
+    LowFPS = 30,
+    MaxFPS = 240,
+    SyncInterval = 5
+}
+
+-- Get user config
+local USER = getgenv().FPS_CONFIG or {}
+
+-- Merge config (safe)
+local CONFIG = {
+    ToggleKey = USER.ToggleKey or DEFAULT.ToggleKey,
+    LowFPS = tonumber(USER.LowFPS) or DEFAULT.LowFPS,
+    MaxFPS = tonumber(USER.MaxFPS) or DEFAULT.MaxFPS,
+    SyncInterval = tonumber(USER.SyncInterval) or DEFAULT.SyncInterval
+}
+
+-- State
+local state = {
+    limited = false
+}
+
+-- Notify (used only on start)
+local function notify(title, text, duration)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = title,
+            Text = text,
+            Duration = duration or 5
+        })
+    end)
+end
+
+-- FPS setter
+local function setFPS(value)
+    if typeof(setfpscap) == "function" then
+        setfpscap(value)
+    end
+end
+
+-- Apply current state
+local function applyState()
+    if state.limited then
+        setFPS(CONFIG.LowFPS)
+    else
+        setFPS(CONFIG.MaxFPS)
+    end
+end
+
+-- Toggle FPS (no cooldown, no notify)
+local function toggle()
+    state.limited = not state.limited
+    applyState()
+end
+
+-- Input listener
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+    if input.KeyCode ~= CONFIG.ToggleKey then return end
+
+    local gui = LocalPlayer:FindFirstChild("PlayerGui")
+    if not gui then return end
+    if gui:FindFirstChild("Chat") or gui:FindFirstChild("MenuGui") then return end
+
+    toggle()
+end)
+
+-- Reset on respawn
+LocalPlayer.CharacterAdded:Connect(function()
+    state.limited = false
+    applyState()
+end)
+
+-- Sync loop (keep FPS stable)
+task.spawn(function()
+    while true do
+        task.wait(CONFIG.SyncInterval)
+        applyState()
+    end
+end)
+
+-- Init
+applyState()
+
+-- Start notifications
+notify("FPS Tool", "Loaded successfully", 5)
+notify("Controls", "[" .. CONFIG.ToggleKey.Name .. "] - Toggle FPS", 5)
