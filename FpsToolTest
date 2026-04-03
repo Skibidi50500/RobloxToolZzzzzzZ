@@ -2,12 +2,12 @@ if not game:IsLoaded() then
     game.Loaded:Wait()
 end
 
--- Anti double inject
-if _G.__FPS_TOOL_LOADED__ then
+-- Prevent duplicate execution
+if rawget(_G, "__FPS_TOOL_LOADED__") then
     pcall(function()
         game:GetService("StarterGui"):SetCore("SendNotification", {
             Title = "FPS Tool",
-            Text = "Already running",
+            Text = "Instance already running",
             Duration = 4
         })
     end)
@@ -17,71 +17,71 @@ _G.__FPS_TOOL_LOADED__ = true
 
 -- Services
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
+local Input = game:GetService("UserInputService")
 local StarterGui = game:GetService("StarterGui")
 
 local LocalPlayer = Players.LocalPlayer
 
--- Default config
+-- Default configuration
 local DEFAULT = {
     ToggleKey = Enum.KeyCode.R,
     LowFPS = 30,
-    MaxFPS = 240,
-    SyncInterval = 5
+    MaxFPS = 240
 }
 
--- Get user config
+-- User configuration
 local USER = getgenv().FPS_CONFIG or {}
 
--- Merge config (safe)
+-- Resolved configuration
 local CONFIG = {
     ToggleKey = USER.ToggleKey or DEFAULT.ToggleKey,
     LowFPS = tonumber(USER.LowFPS) or DEFAULT.LowFPS,
-    MaxFPS = tonumber(USER.MaxFPS) or DEFAULT.MaxFPS,
-    SyncInterval = tonumber(USER.SyncInterval) or DEFAULT.SyncInterval
+    MaxFPS = tonumber(USER.MaxFPS) or DEFAULT.MaxFPS
 }
 
--- State
-local state = {
-    limited = false
-}
+-- Internal state
+local isLimited = false
+local currentCap = nil
 
--- Notify (used only on start)
-local function notify(title, text, duration)
+-- Notification utility
+local function notify(title, message, duration)
     pcall(function()
         StarterGui:SetCore("SendNotification", {
             Title = title,
-            Text = text,
+            Text = message,
             Duration = duration or 5
         })
     end)
 end
 
--- FPS setter
-local function setFPS(value)
+-- Optimized FPS setter (no spam, no stutter)
+local function setCap(value)
     if typeof(setfpscap) == "function" then
-        setfpscap(value)
+        if currentCap ~= value then
+            currentCap = value
+            setfpscap(value)
+        end
     end
 end
 
--- Apply current state
-local function applyState()
-    if state.limited then
-        setFPS(CONFIG.LowFPS)
+-- Apply current mode
+local function apply()
+    if isLimited then
+        setCap(CONFIG.LowFPS)
     else
-        setFPS(CONFIG.MaxFPS)
+        setCap(CONFIG.MaxFPS)
     end
 end
 
--- Toggle FPS (no cooldown, no notify)
+-- Toggle handler
 local function toggle()
-    state.limited = not state.limited
-    applyState()
+    isLimited = not isLimited
+    apply()
 end
 
--- Input listener
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
+-- Input handling
+Input.InputBegan:Connect(function(input, processed)
+    if processed then return end
     if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
     if input.KeyCode ~= CONFIG.ToggleKey then return end
 
@@ -92,23 +92,16 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     toggle()
 end)
 
--- Reset on respawn
+-- Reset on respawn (guarantees consistency)
 LocalPlayer.CharacterAdded:Connect(function()
-    state.limited = false
-    applyState()
-end)
-
--- Sync loop (keep FPS stable)
-task.spawn(function()
-    while true do
-        task.wait(CONFIG.SyncInterval)
-        applyState()
-    end
+    isLimited = false
+    apply()
 end)
 
 -- Init
-applyState()
+apply()
 
--- Start notifications
+-- Startup notifications
 notify("FPS Tool", "Loaded successfully", 5)
-notify("Controls", "[" .. CONFIG.ToggleKey.Name .. "] - Toggle FPS", 5)
+notify("Controls", "[" .. CONFIG.ToggleKey.Name .. "] to toggle FPS", 5)
+notify("Maximum FPS Capped", "Your maximum FPS is now " .. CONFIG.MaxFPS, 5)
