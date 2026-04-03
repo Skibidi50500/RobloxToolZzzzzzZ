@@ -7,7 +7,7 @@ if rawget(_G, "__FPS_TOOL_LOADED__") then
     pcall(function()
         game:GetService("StarterGui"):SetCore("SendNotification", {
             Title = "FPS Tool",
-            Text = "Instance already running",
+            Text = "Already running",
             Duration = 4
         })
     end)
@@ -54,7 +54,7 @@ local function notify(title, message, duration)
     end)
 end
 
--- Optimized FPS setter (no spam, no stutter)
+-- Optimized FPS setter
 local function setCap(value)
     if typeof(setfpscap) == "function" then
         if currentCap ~= value then
@@ -92,7 +92,7 @@ Input.InputBegan:Connect(function(input, processed)
     toggle()
 end)
 
--- Reset on respawn (guarantees consistency)
+-- Reset on respawn
 LocalPlayer.CharacterAdded:Connect(function()
     isLimited = false
     apply()
@@ -104,4 +104,4 @@ apply()
 -- Startup notifications
 notify("FPS Tool", "Loaded successfully", 5)
 notify("Controls", "[" .. CONFIG.ToggleKey.Name .. "] to toggle FPS", 5)
-notify("Maximum FPS Capped", "Your maximum FPS is now " .. CONFIG.MaxFPS, 5)
+notify("Settings", "Max FPS: " .. CONFIG.MaxFPS .. "\nLow FPS (ON): " .. CONFIG.LowFPS, 5)
