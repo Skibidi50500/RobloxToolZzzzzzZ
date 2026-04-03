@@ -8,7 +8,7 @@ if rawget(_G, "__FPS_TOOL_LOADED__") then
         game:GetService("StarterGui"):SetCore("SendNotification", {
             Title = "FPS Tool",
             Text = "Already running",
-            Duration = 4
+            Duration = 5
         })
     end)
     return
@@ -101,7 +101,7 @@ end)
 -- Init
 apply()
 
--- Startup notifications
-notify("FPS Tool", "Loaded successfully", 5)
-notify("Controls", "[" .. CONFIG.ToggleKey.Name .. "] to toggle FPS", 5)
-notify("Settings", "Max FPS: " .. CONFIG.MaxFPS .. "\nLow FPS (ON): " .. CONFIG.LowFPS, 5)
+-- Startup notifications (10s)
+notify("FPS Tool", "Loaded successfully", 10)
+notify("Controls", "[" .. CONFIG.ToggleKey.Name .. "] - to toggle FPS", 10)
+notify("Settings", "Max FPS: " .. CONFIG.MaxFPS .. "\nLow FPS (When toggle ON): " .. CONFIG.LowFPS, 10)
