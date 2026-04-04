@@ -57,13 +57,11 @@ if rawget(_G, "__FPS_TOOL_STATE__") then
     local STATE = _G.__FPS_TOOL_STATE__
     local old = STATE.CONFIG
 
-    -- Same config
     if isSameConfig(old, NEW_CONFIG) then
         notify("FPS Tool", "Already running", 5)
         return
     end
 
-    -- Apply new config
     notify("FPS Tool", "Applying new settings...", 2)
 
     STATE.CONFIG = NEW_CONFIG
@@ -90,7 +88,6 @@ STATE.CONFIG = NEW_CONFIG
 
 local isLimited = false
 local currentCap = nil
-local debounce = false
 
 -- Safe FPS cap setter
 local function setCap(cap)
@@ -116,17 +113,10 @@ function STATE.apply()
     end
 end
 
--- Toggle FPS
+-- Toggle FPS (no cooldown)
 local function toggle()
-    if debounce then return end
-    debounce = true
-
     isLimited = not isLimited
     STATE.apply()
-
-    task.delay(0.2, function()
-        debounce = false
-    end)
 end
 
 -- Input listener
@@ -138,8 +128,9 @@ UIS.InputBegan:Connect(function(input, gp)
     toggle()
 end)
 
--- Reapply on respawn
+-- Reset to max FPS on respawn
 LP.CharacterAdded:Connect(function()
+    isLimited = false
     task.wait(0.5)
     STATE.apply()
 end)
