@@ -33,39 +33,55 @@ local function notify(t, msg, d)
         StarterGui:SetCore("SendNotification", {
             Title = t,
             Text = msg,
-            Duration = d or 5
+            Duration = d or 4
         })
     end)
 end
 
--- Nếu đã chạy rồi → check config
+-- So sánh config
+local function isSameConfig(a, b)
+    return a.ToggleKey == b.ToggleKey
+        and a.LowFPS == b.LowFPS
+        and a.MaxFPS == b.MaxFPS
+end
+
+-- Format settings text
+local function formatSettings(cfg, includeKey)
+    local text = "Max FPS: "..cfg.MaxFPS.."\nLow FPS: "..cfg.LowFPS
+    if includeKey then
+        text = text .. "\nKeybind: " .. cfg.ToggleKey.Name
+    end
+    return text
+end
+
+-- Nếu đã chạy
 if rawget(_G, "__FPS_TOOL_STATE__") then
     local STATE = _G.__FPS_TOOL_STATE__
-
     local old = STATE.CONFIG
 
-    local same =
-        old.ToggleKey == NEW_CONFIG.ToggleKey and
-        old.LowFPS == NEW_CONFIG.LowFPS and
-        old.MaxFPS == NEW_CONFIG.MaxFPS
-
-    if same then
+    if isSameConfig(old, NEW_CONFIG) then
         notify("FPS Tool", "Already running", 5)
         return
     end
 
-    -- 🔥 APPLY NEW SETTINGS
-    notify("FPS Tool", "Applying new settings...", 4)
+    -- check có đổi key không
+    local keyChanged = old.ToggleKey ~= NEW_CONFIG.ToggleKey
+
+    notify("FPS Tool", "Applying new settings...", 2)
 
     -- update config
     STATE.CONFIG = NEW_CONFIG
-
-    -- apply lại ngay
     STATE.apply()
 
-    -- delay random 3 → 5s
-    task.delay(math.random(3,5), function()
-        notify("FPS Tool", "Applied new settings", 4)
+    -- Applied + show new settings
+    task.delay(math.random(1,2), function()
+        notify("FPS Tool", "Applied new settings", 3)
+
+        notify(
+            "FPS Tool",
+            formatSettings(NEW_CONFIG, keyChanged),
+            6
+        )
     end)
 
     return
@@ -74,7 +90,6 @@ end
 -- ===== FIRST LOAD =====
 
 _G.__FPS_TOOL_STATE__ = {}
-
 local STATE = _G.__FPS_TOOL_STATE__
 
 STATE.CONFIG = NEW_CONFIG
@@ -143,5 +158,9 @@ task.spawn(function()
     notify("Controls", "[" .. STATE.CONFIG.ToggleKey.Name .. "] - to toggle FPS", 10)
     task.wait(1)
 
-    notify("Settings", "Max FPS: " .. STATE.CONFIG.MaxFPS .. "\nLow FPS: " .. STATE.CONFIG.LowFPS, 10)
+    notify(
+        "Current Settings",
+        formatSettings(STATE.CONFIG, true),
+        10
+    )
 end)
