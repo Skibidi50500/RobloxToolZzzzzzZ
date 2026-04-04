@@ -3,19 +3,6 @@ if not game:IsLoaded() then
     game.Loaded:Wait()
 end
 
--- Prevent duplicate
-if rawget(_G, "__FPS_TOOL_LOADED__") then
-    pcall(function()
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "FPS Tool",
-            Text = "Already running",
-            Duration = 5
-        })
-    end)
-    return
-end
-_G.__FPS_TOOL_LOADED__ = true
-
 -- Services
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -34,16 +21,11 @@ local DEFAULT = {
 -- User config
 local USER = getgenv().FPS_CONFIG or {}
 
-local CONFIG = {
+local NEW_CONFIG = {
     ToggleKey = USER.ToggleKey or DEFAULT.ToggleKey,
     LowFPS = tonumber(USER.LowFPS) or DEFAULT.LowFPS,
     MaxFPS = tonumber(USER.MaxFPS) or DEFAULT.MaxFPS
 }
-
--- State
-local isLimited = false
-local currentCap = nil
-local debounce = false
 
 -- Notify
 local function notify(t, msg, d)
@@ -56,21 +38,65 @@ local function notify(t, msg, d)
     end)
 end
 
--- Safe fps cap (anti spike)
+-- Nếu đã chạy rồi → check config
+if rawget(_G, "__FPS_TOOL_STATE__") then
+    local STATE = _G.__FPS_TOOL_STATE__
+
+    local old = STATE.CONFIG
+
+    local same =
+        old.ToggleKey == NEW_CONFIG.ToggleKey and
+        old.LowFPS == NEW_CONFIG.LowFPS and
+        old.MaxFPS == NEW_CONFIG.MaxFPS
+
+    if same then
+        notify("FPS Tool", "Already running", 5)
+        return
+    end
+
+    -- 🔥 APPLY NEW SETTINGS
+    notify("FPS Tool", "Applying new settings...", 4)
+
+    -- update config
+    STATE.CONFIG = NEW_CONFIG
+
+    -- apply lại ngay
+    STATE.apply()
+
+    -- delay random 3 → 5s
+    task.delay(math.random(3,5), function()
+        notify("FPS Tool", "Applied new settings", 4)
+    end)
+
+    return
+end
+
+-- ===== FIRST LOAD =====
+
+_G.__FPS_TOOL_STATE__ = {}
+
+local STATE = _G.__FPS_TOOL_STATE__
+
+STATE.CONFIG = NEW_CONFIG
+
+local isLimited = false
+local currentCap = nil
+local debounce = false
+
+-- Safe cap
 local function setCap(cap)
     if typeof(setfpscap) ~= "function" then return end
     if currentCap == cap then return end
 
     currentCap = cap
-
-    -- tránh spike
     RunService.Heartbeat:Wait()
-
     pcall(setfpscap, cap)
 end
 
 -- Apply
-local function apply()
+function STATE.apply()
+    local CONFIG = STATE.CONFIG
+
     if isLimited then
         setCap(CONFIG.LowFPS)
     else
@@ -78,13 +104,13 @@ local function apply()
     end
 end
 
--- Toggle (KHÔNG notify)
+-- Toggle
 local function toggle()
     if debounce then return end
     debounce = true
 
     isLimited = not isLimited
-    apply()
+    STATE.apply()
 
     task.delay(0.2, function()
         debounce = false
@@ -95,7 +121,7 @@ end
 UIS.InputBegan:Connect(function(input, gp)
     if gp then return end
     if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-    if input.KeyCode ~= CONFIG.ToggleKey then return end
+    if input.KeyCode ~= STATE.CONFIG.ToggleKey then return end
 
     toggle()
 end)
@@ -103,19 +129,19 @@ end)
 -- Respawn
 LP.CharacterAdded:Connect(function()
     task.wait(0.5)
-    apply()
+    STATE.apply()
 end)
 
 -- Init
-apply()
+STATE.apply()
 
--- Startup notifications (giữ lại)
+-- Startup notify
 task.spawn(function()
     notify("FPS Tool", "Loaded successfully", 10)
     task.wait(1)
 
-    notify("Controls", "[" .. CONFIG.ToggleKey.Name .. "] - to toggle FPS", 10)
+    notify("Controls", "[" .. STATE.CONFIG.ToggleKey.Name .. "] - to toggle FPS", 10)
     task.wait(1)
 
-    notify("Settings", "Max FPS: " .. CONFIG.MaxFPS .. "\nLow FPS (When toggle ON): " .. CONFIG.LowFPS, 10)
+    notify("Settings", "Max FPS: " .. STATE.CONFIG.MaxFPS .. "\nLow FPS: " .. STATE.CONFIG.LowFPS, 10)
 end)
