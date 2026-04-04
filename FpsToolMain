@@ -38,23 +38,27 @@ local function notify(t, msg, d)
     end)
 end
 
--- So sánh config
+-- Compare config
 local function isSameConfig(a, b)
     return a.ToggleKey == b.ToggleKey
         and a.LowFPS == b.LowFPS
         and a.MaxFPS == b.MaxFPS
 end
 
--- Format settings text
+-- Format settings (KEYBIND LÊN ĐẦU)
 local function formatSettings(cfg, includeKey)
-    local text = "Max FPS: "..cfg.MaxFPS.."\nLow FPS: "..cfg.LowFPS
+    local text = ""
+
     if includeKey then
-        text = text .. "\nKeybind: " .. cfg.ToggleKey.Name
+        text = "Keybind: " .. cfg.ToggleKey.Name .. "\n"
     end
+
+    text = text .. "Max FPS: "..cfg.MaxFPS.."\nLow FPS: "..cfg.LowFPS
+
     return text
 end
 
--- Nếu đã chạy
+-- Already running logic
 if rawget(_G, "__FPS_TOOL_STATE__") then
     local STATE = _G.__FPS_TOOL_STATE__
     local old = STATE.CONFIG
@@ -64,22 +68,19 @@ if rawget(_G, "__FPS_TOOL_STATE__") then
         return
     end
 
-    -- check có đổi key không
     local keyChanged = old.ToggleKey ~= NEW_CONFIG.ToggleKey
 
     notify("FPS Tool", "Applying new settings...", 2)
 
-    -- update config
     STATE.CONFIG = NEW_CONFIG
     STATE.apply()
 
-    -- Applied + show new settings
     task.delay(math.random(1,2), function()
         notify("FPS Tool", "Applied new settings", 3)
 
         notify(
-            "FPS Tool",
-            formatSettings(NEW_CONFIG, keyChanged),
+            "New Settings",
+            formatSettings(NEW_CONFIG, true),
             6
         )
     end)
@@ -150,12 +151,9 @@ end)
 -- Init
 STATE.apply()
 
--- Startup notify
+-- Startup notify (đã bỏ Controls)
 task.spawn(function()
     notify("FPS Tool", "Loaded successfully", 10)
-    task.wait(1)
-
-    notify("Controls", "[" .. STATE.CONFIG.ToggleKey.Name .. "] - to toggle FPS", 10)
     task.wait(1)
 
     notify(
