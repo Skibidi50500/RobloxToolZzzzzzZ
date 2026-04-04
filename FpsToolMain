@@ -1,71 +1,76 @@
+-- Wait game load
 if not game:IsLoaded() then
     game.Loaded:Wait()
 end
 
--- Prevent duplicate execution
-if rawget(_G, "__FPS_TOOL_LOADED__") then
-    pcall(function()
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "FPS Tool",
-            Text = "Already running",
-            Duration = 5
-        })
-    end)
-    return
-end
+-- Prevent duplicate
+if rawget(_G, "__FPS_TOOL_LOADED__") then return end
 _G.__FPS_TOOL_LOADED__ = true
 
 -- Services
 local Players = game:GetService("Players")
-local Input = game:GetService("UserInputService")
+local UIS = game:GetService("UserInputService")
 local StarterGui = game:GetService("StarterGui")
+local RunService = game:GetService("RunService")
 
-local LocalPlayer = Players.LocalPlayer
+local LP = Players.LocalPlayer
 
--- Default configuration
+-- Default
 local DEFAULT = {
     ToggleKey = Enum.KeyCode.R,
     LowFPS = 30,
-    MaxFPS = 240
+    MaxFPS = 240,
+    AFKTime = 0
 }
 
--- User configuration
+-- User config
 local USER = getgenv().FPS_CONFIG or {}
 
--- Resolved configuration
 local CONFIG = {
     ToggleKey = USER.ToggleKey or DEFAULT.ToggleKey,
     LowFPS = tonumber(USER.LowFPS) or DEFAULT.LowFPS,
-    MaxFPS = tonumber(USER.MaxFPS) or DEFAULT.MaxFPS
+    MaxFPS = tonumber(USER.MaxFPS) or DEFAULT.MaxFPS,
+    AFKTime = tonumber(USER.AFKTime) or DEFAULT.AFKTime
 }
 
--- Internal state
+-- State
 local isLimited = false
 local currentCap = nil
+local lastInputTime = tick()
+local isAFK = false
+local debounce = false
 
--- Notification utility
-local function notify(title, message, duration)
+-- Notify
+local function notify(t, msg, d)
     pcall(function()
         StarterGui:SetCore("SendNotification", {
-            Title = title,
-            Text = message,
-            Duration = duration or 5
+            Title = t,
+            Text = msg,
+            Duration = d or 4
         })
     end)
 end
 
--- Optimized FPS setter
-local function setCap(value)
-    if typeof(setfpscap) == "function" then
-        if currentCap ~= value then
-            currentCap = value
-            setfpscap(value)
-        end
-    end
+-- Safe fps cap (NO SPIKE VERSION)
+local function setCap(cap)
+    if typeof(setfpscap) ~= "function" then return end
+    if currentCap == cap then return end
+
+    currentCap = cap
+
+    -- cực quan trọng: delay 1 frame để tránh drop
+    RunService.Heartbeat:Wait()
+
+    pcall(setfpscap, cap)
 end
 
--- Apply current mode
+-- Apply logic (ưu tiên AFK)
 local function apply()
+    if isAFK then
+        setCap(CONFIG.LowFPS)
+        return
+    end
+
     if isLimited then
         setCap(CONFIG.LowFPS)
     else
@@ -73,39 +78,62 @@ local function apply()
     end
 end
 
--- Toggle handler
+-- Toggle
 local function toggle()
+    if debounce then return end
+    debounce = true
+
     isLimited = not isLimited
     apply()
+
+    notify("FPS Tool", isLimited and ("Low FPS: "..CONFIG.LowFPS) or ("Max FPS: "..CONFIG.MaxFPS))
+
+    task.delay(0.2, function()
+        debounce = false
+    end)
 end
 
--- Input handling
-Input.InputBegan:Connect(function(input, processed)
-    if processed then return end
+-- Detect input (reset AFK)
+UIS.InputBegan:Connect(function(input, gp)
+    if not gp then
+        lastInputTime = tick()
+
+        if isAFK then
+            isAFK = false
+            apply()
+            notify("AFK", "Back to normal FPS")
+        end
+    end
+
+    if gp then return end
     if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
     if input.KeyCode ~= CONFIG.ToggleKey then return end
-
-    local gui = LocalPlayer:FindFirstChild("PlayerGui")
-    if not gui then return end
-    if gui:FindFirstChild("Chat") or gui:FindFirstChild("MenuGui") then return end
 
     toggle()
 end)
 
--- Reset on respawn
-LocalPlayer.CharacterAdded:Connect(function()
-    isLimited = false
+-- AFK checker (ULTRA LIGHT - không gây lag)
+if CONFIG.AFKTime > 0 then
+    task.spawn(function()
+        while true do
+            task.wait(1)
+
+            if not isAFK and (tick() - lastInputTime >= CONFIG.AFKTime) then
+                isAFK = true
+                apply()
+                notify("AFK", "FPS reduced ("..CONFIG.LowFPS..")")
+            end
+        end
+    end)
+end
+
+-- Respawn fix (KHÔNG gây spike)
+LP.CharacterAdded:Connect(function()
+    task.wait(0.5)
     apply()
 end)
 
 -- Init
 apply()
 
--- Startup notifications sequentially (10s each)
-task.spawn(function()
-    notify("FPS Tool", "Loaded successfully", 10)
-    task.wait(1)
-    notify("Controls", "[" .. CONFIG.ToggleKey.Name .. "] - to toggle FPS", 10)
-    task.wait(1)
-    notify("Settings", "Max FPS: " .. CONFIG.MaxFPS .. "\nLow FPS (When toggle ON): " .. CONFIG.LowFPS, 10)
-end)
+notify("FPS Tool", "Loaded | AFK: "..CONFIG.AFKTime.."s")
