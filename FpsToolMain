@@ -28,8 +28,7 @@ local LP = Players.LocalPlayer
 local DEFAULT = {
     ToggleKey = Enum.KeyCode.R,
     LowFPS = 30,
-    MaxFPS = 240,
-    AFKTime = 0
+    MaxFPS = 240
 }
 
 -- User config
@@ -38,15 +37,12 @@ local USER = getgenv().FPS_CONFIG or {}
 local CONFIG = {
     ToggleKey = USER.ToggleKey or DEFAULT.ToggleKey,
     LowFPS = tonumber(USER.LowFPS) or DEFAULT.LowFPS,
-    MaxFPS = tonumber(USER.MaxFPS) or DEFAULT.MaxFPS,
-    AFKTime = tonumber(USER.AFKTime) or DEFAULT.AFKTime
+    MaxFPS = tonumber(USER.MaxFPS) or DEFAULT.MaxFPS
 }
 
 -- State
 local isLimited = false
 local currentCap = nil
-local lastInputTime = tick()
-local isAFK = false
 local debounce = false
 
 -- Notify
@@ -73,13 +69,8 @@ local function setCap(cap)
     pcall(setfpscap, cap)
 end
 
--- Apply logic
+-- Apply
 local function apply()
-    if isAFK then
-        setCap(CONFIG.LowFPS)
-        return
-    end
-
     if isLimited then
         setCap(CONFIG.LowFPS)
     else
@@ -87,7 +78,7 @@ local function apply()
     end
 end
 
--- Toggle
+-- Toggle (KHÔNG notify)
 local function toggle()
     if debounce then return end
     debounce = true
@@ -95,46 +86,19 @@ local function toggle()
     isLimited = not isLimited
     apply()
 
-    notify("FPS Tool", isLimited and ("Low FPS: "..CONFIG.LowFPS) or ("Max FPS: "..CONFIG.MaxFPS), 4)
-
     task.delay(0.2, function()
         debounce = false
     end)
 end
 
--- Input detect
+-- Input
 UIS.InputBegan:Connect(function(input, gp)
-    if not gp then
-        lastInputTime = tick()
-
-        if isAFK then
-            isAFK = false
-            apply()
-            notify("AFK", "Back to normal FPS", 4)
-        end
-    end
-
     if gp then return end
     if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
     if input.KeyCode ~= CONFIG.ToggleKey then return end
 
     toggle()
 end)
-
--- AFK checker
-if CONFIG.AFKTime > 0 then
-    task.spawn(function()
-        while true do
-            task.wait(1)
-
-            if not isAFK and (tick() - lastInputTime >= CONFIG.AFKTime) then
-                isAFK = true
-                apply()
-                notify("AFK", "FPS reduced ("..CONFIG.LowFPS..")", 4)
-            end
-        end
-    end)
-end
 
 -- Respawn
 LP.CharacterAdded:Connect(function()
@@ -145,7 +109,7 @@ end)
 -- Init
 apply()
 
--- 🔥 Startup notifications (GIỮ NGUYÊN + FIX)
+-- Startup notifications (giữ lại)
 task.spawn(function()
     notify("FPS Tool", "Loaded successfully", 10)
     task.wait(1)
@@ -154,14 +118,4 @@ task.spawn(function()
     task.wait(1)
 
     notify("Settings", "Max FPS: " .. CONFIG.MaxFPS .. "\nLow FPS (When toggle ON): " .. CONFIG.LowFPS, 10)
-    task.wait(1)
-
-    -- ✅ AFK Notify (NEW - theo yêu cầu)
-    if CONFIG.AFKTime > 0 then
-        notify(
-            "AFK ENABLED",
-            "If you do not interact for "..CONFIG.AFKTime.." seconds, you will be switched to AFK mode",
-            10
-        )
-    end
 end)
