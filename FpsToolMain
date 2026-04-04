@@ -4,7 +4,16 @@ if not game:IsLoaded() then
 end
 
 -- Prevent duplicate
-if rawget(_G, "__FPS_TOOL_LOADED__") then return end
+if rawget(_G, "__FPS_TOOL_LOADED__") then
+    pcall(function()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "FPS Tool",
+            Text = "Already running",
+            Duration = 5
+        })
+    end)
+    return
+end
 _G.__FPS_TOOL_LOADED__ = true
 
 -- Services
@@ -46,25 +55,25 @@ local function notify(t, msg, d)
         StarterGui:SetCore("SendNotification", {
             Title = t,
             Text = msg,
-            Duration = d or 4
+            Duration = d or 5
         })
     end)
 end
 
--- Safe fps cap (NO SPIKE VERSION)
+-- Safe fps cap (anti spike)
 local function setCap(cap)
     if typeof(setfpscap) ~= "function" then return end
     if currentCap == cap then return end
 
     currentCap = cap
 
-    -- cực quan trọng: delay 1 frame để tránh drop
+    -- tránh spike
     RunService.Heartbeat:Wait()
 
     pcall(setfpscap, cap)
 end
 
--- Apply logic (ưu tiên AFK)
+-- Apply logic
 local function apply()
     if isAFK then
         setCap(CONFIG.LowFPS)
@@ -86,14 +95,14 @@ local function toggle()
     isLimited = not isLimited
     apply()
 
-    notify("FPS Tool", isLimited and ("Low FPS: "..CONFIG.LowFPS) or ("Max FPS: "..CONFIG.MaxFPS))
+    notify("FPS Tool", isLimited and ("Low FPS: "..CONFIG.LowFPS) or ("Max FPS: "..CONFIG.MaxFPS), 4)
 
     task.delay(0.2, function()
         debounce = false
     end)
 end
 
--- Detect input (reset AFK)
+-- Input detect
 UIS.InputBegan:Connect(function(input, gp)
     if not gp then
         lastInputTime = tick()
@@ -101,7 +110,7 @@ UIS.InputBegan:Connect(function(input, gp)
         if isAFK then
             isAFK = false
             apply()
-            notify("AFK", "Back to normal FPS")
+            notify("AFK", "Back to normal FPS", 4)
         end
     end
 
@@ -112,7 +121,7 @@ UIS.InputBegan:Connect(function(input, gp)
     toggle()
 end)
 
--- AFK checker (ULTRA LIGHT - không gây lag)
+-- AFK checker
 if CONFIG.AFKTime > 0 then
     task.spawn(function()
         while true do
@@ -121,13 +130,13 @@ if CONFIG.AFKTime > 0 then
             if not isAFK and (tick() - lastInputTime >= CONFIG.AFKTime) then
                 isAFK = true
                 apply()
-                notify("AFK", "FPS reduced ("..CONFIG.LowFPS..")")
+                notify("AFK", "FPS reduced ("..CONFIG.LowFPS..")", 4)
             end
         end
     end)
 end
 
--- Respawn fix (KHÔNG gây spike)
+-- Respawn
 LP.CharacterAdded:Connect(function()
     task.wait(0.5)
     apply()
@@ -136,4 +145,23 @@ end)
 -- Init
 apply()
 
-notify("FPS Tool", "Loaded | AFK: "..CONFIG.AFKTime.."s")
+-- 🔥 Startup notifications (GIỮ NGUYÊN + FIX)
+task.spawn(function()
+    notify("FPS Tool", "Loaded successfully", 10)
+    task.wait(1)
+
+    notify("Controls", "[" .. CONFIG.ToggleKey.Name .. "] - to toggle FPS", 10)
+    task.wait(1)
+
+    notify("Settings", "Max FPS: " .. CONFIG.MaxFPS .. "\nLow FPS (When toggle ON): " .. CONFIG.LowFPS, 10)
+    task.wait(1)
+
+    -- ✅ AFK Notify (NEW - theo yêu cầu)
+    if CONFIG.AFKTime > 0 then
+        notify(
+            "AFK ENABLED",
+            "If you do not interact for "..CONFIG.AFKTime.." seconds, you will be switched to AFK mode",
+            10
+        )
+    end
+end)
